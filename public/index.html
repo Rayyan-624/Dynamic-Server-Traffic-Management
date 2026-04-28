@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Load Balancer | Smart Traffic Management</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="ai-icon">🧠</span>
+            <span>AI Intelligent Load Balancer</span>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="active">Dashboard</a>
+            <a href="/dashboard.html">Analytics</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Algorithm Selector -->
+        <div class="algorithm-card">
+            <h3>⚡ Load Balancing Algorithm</h3>
+            <div class="algorithm-selector">
+                <button class="algo-btn" data-algo="round-robin">🔄 Round Robin</button>
+                <button class="algo-btn" data-algo="least-connections">🔗 Least Connections</button>
+                <button class="algo-btn active" data-algo="ai">🧠 AI-Powered</button>
+            </div>
+            <div class="current-algorithm">
+                Current: <span id="current-algo">AI-Powered</span>
+            </div>
+        </div>
+
+        <!-- Server Status Cards -->
+        <div class="servers-grid">
+            <div class="server-card" data-server="1">
+                <div class="server-header">
+                    <span class="server-name">🖥️ Server A</span>
+                    <span class="server-status status-active">Active</span>
+                </div>
+                <div class="server-load">
+                    <div class="load-label">Load: <span class="load-value">0</span>%</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="server-stats">
+                    <div>📊 Requests: <span class="requests-count">0</span></div>
+                    <div>⏱️ Response: <span class="response-time">0</span>ms</div>
+                </div>
+            </div>
+            <!-- Repeat for Server B, C, D -->
+            <div class="server-card" data-server="2">
+                <div class="server-header">
+                    <span class="server-name">🖥️ Server B</span>
+                    <span class="server-status status-active">Active</span>
+                </div>
+                <div class="server-load">
+                    <div class="load-label">Load: <span class="load-value">0</span>%</div>
+                    <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
+                </div>
+                <div class="server-stats">
+                    <div>📊 Requests: <span class="requests-count">0</span></div>
+                    <div>⏱️ Response: <span class="response-time">0</span>ms</div>
+                </div>
+            </div>
+            <div class="server-card" data-server="3">
+                <div class="server-header">
+                    <span class="server-name">🖥️ Server C</span>
+                    <span class="server-status status-active">Active</span>
+                </div>
+                <div class="server-load">
+                    <div class="load-label">Load: <span class="load-value">0</span>%</div>
+                    <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
+                </div>
+                <div class="server-stats">
+                    <div>📊 Requests: <span class="requests-count">0</span></div>
+                    <div>⏱️ Response: <span class="response-time">0</span>ms</div>
+                </div>
+            </div>
+            <div class="server-card" data-server="4">
+                <div class="server-header">
+                    <span class="server-name">🖥️ Server D</span>
+                    <span class="server-status status-active">Active</span>
+                </div>
+                <div class="server-load">
+                    <div class="load-label">Load: <span class="load-value">0</span>%</div>
+                    <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
+                </div>
+                <div class="server-stats">
+                    <div>📊 Requests: <span class="requests-count">0</span></div>
+                    <div>⏱️ Response: <span class="response-time">0</span>ms</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Stats -->
+        <div class="stats-card">
+            <h3>📈 System Performance</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="total-requests">0</div>
+                    <div class="stat-label">Total Requests</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="avg-response">0</div>
+                    <div class="stat-label">Avg Response (ms)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="rr-count">0</div>
+                    <div class="stat-label">Round Robin</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="lc-count">0</div>
+                    <div class="stat-label">Least Connections</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="ai-count">0</div>
+                    <div class="stat-label">AI Routing</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Request Simulator -->
+        <div class="simulator-card">
+            <h3>🎮 Request Simulator</h3>
+            <div class="simulator-controls">
+                <button id="send-single" class="btn-primary">Send Single Request</button>
+                <div class="batch-controls">
+                    <input type="number" id="batch-size" placeholder="Batch size" value="10" min="1" max="100">
+                    <button id="send-batch" class="btn-secondary">Send Batch</button>
+                </div>
+                <button id="auto-mode" class="btn-auto">▶ Auto Mode</button>
+                <button id="reset-stats" class="btn-danger">Reset Stats</button>
+            </div>
+            <div id="request-log" class="request-log">
+                <div class="log-header">Request Log</div>
+                <div class="log-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
