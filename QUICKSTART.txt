@@ -1,0 +1,150 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║          🧠 AI LOAD BALANCER - QUICK REFERENCE CARD                         ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🚀 QUICK START                                                               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Windows:     start.bat                                                     │
+│  Mac/Linux:   ./start.sh                                                    │
+│                                                                              │
+│  Then open: http://localhost:3000                                           │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 📦 INITIAL SETUP (One Time)                                                  │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  1. npm install                                                             │
+│  2. cd service && pip install -r requirements.txt                          │
+│  3. cd ..                                                                   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🖥️  MANUAL START (3 Terminal Windows)                                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Terminal 1:   npm start                                                    │
+│  Terminal 2:   cd service && python app.py                                  │
+│  Terminal 3:   npm run traffic    (for testing)                             │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🌐 URLS & ENDPOINTS                                                          │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Dashboard:     http://localhost:3000                                       │
+│  Analytics:     http://localhost:3000/dashboard.html                        │
+│  API Metrics:   http://localhost:3000/metrics                               │
+│  Health Check:  http://localhost:5000/health                                │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🎮 DASHBOARD CONTROLS                                                        │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Algorithm Selection:                                                       │
+│    • 🔄 Round Robin - Fixed rotation through servers                       │
+│    • 🔗 Least Connections - Route to server with fewest requests          │
+│    • 🧠 AI-Powered - ML-based prediction (default)                        │
+│                                                                              │
+│  Request Controls:                                                          │
+│    • ⚡ Send Request - Single request                                       │
+│    • 📦 Send Batch - Multiple requests (set count)                         │
+│    • ▶️  Auto Mode - Continuous requests (5/sec)                           │
+│    • 🗑️  Reset - Clear all statistics                                      │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 📊 ANALYTICS DASHBOARD                                                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Charts:                                                                    │
+│    • Algorithm Distribution - Pie chart of algorithm usage                 │
+│    • Server Load Trends - Line chart over time                             │
+│    • Response Time Comparison - Bar chart per algorithm                    │
+│    • Request Rate - Real-time requests/second                              │
+│                                                                              │
+│  Comparison Table:                                                          │
+│    • Total requests per algorithm                                          │
+│    • Average response time                                                 │
+│    • Success rates                                                         │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🔍 TROUBLESHOOTING                                                           │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Port in use?                                                               │
+│    netstat -ano | findstr :3000         (Windows)                           │
+│    lsof -i :3000                        (Mac/Linux)                         │
+│                                                                              │
+│  Module not found?                                                          │
+│    rm -r node_modules && npm install                                        │
+│                                                                              │
+│  Python not found?                                                          │
+│    Make sure Python is in PATH, restart terminal                           │
+│                                                                              │
+│  Dashboard not loading?                                                     │
+│    Ctrl+Shift+Del to clear cache, then hard refresh (Ctrl+F5)              │
+│                                                                              │
+│  AI service not connecting?                                                 │
+│    cd service && python app.py    (verify Flask running)                    │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 📁 PROJECT FILES                                                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  server.js                 - Main load balancer server                     │
+│  public/index.html         - Dashboard page                                │
+│  public/dashboard.html     - Analytics page                                │
+│  public/script.js          - Dashboard logic                               │
+│  public/analytics.js       - Analytics charts                              │
+│  public/style.css          - Styling                                       │
+│  service/app.py            - AI prediction service                         │
+│  simulation/traffic-generator.js - Load testing                            │
+│  package.json              - Node dependencies                             │
+│  README.md                 - Full documentation                            │
+│  INSTALLATION.md           - Setup instructions                            │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 📚 API REFERENCE                                                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  POST /route                - Route a request (returns server & metrics)   │
+│  POST /algorithm            - Switch algorithm (round-robin|ai|...)        │
+│  GET  /metrics              - Get current system metrics                   │
+│  POST /reset                - Reset all statistics                         │
+│                                                                              │
+│  Flask:                                                                     │
+│  POST /predict              - Get AI load predictions                      │
+│  GET  /health               - Health check endpoint                        │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 💡 USEFUL TIPS                                                               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  • Server D is intentionally slower for testing load distribution           │
+│  • AI algorithm typically performs best at balancing load                   │
+│  • Analytics page updates every 3 seconds                                   │
+│  • Servers auto-recover after degradation in 10 seconds                    │
+│  • Load decays by 5% every 3 seconds (simulated cooldown)                  │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+For complete documentation, see README.md and INSTALLATION.md

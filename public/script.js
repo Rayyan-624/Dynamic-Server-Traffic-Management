@@ -186,10 +186,10 @@ function toggleAutoMode() {
         autoModeBtn.classList.remove('running');
         addLogEntry('⏹ Auto mode stopped', 'info');
     } else {
-        autoModeInterval = setInterval(() => sendRequest({ auto: true }), 800);
+        autoModeInterval = setInterval(() => sendRequest({ auto: true }), 200);
         autoModeBtn.textContent = '⏸ Stop Auto';
         autoModeBtn.classList.add('running');
-        addLogEntry('▶ Auto mode started (1.25 req/s)', 'info');
+        addLogEntry('▶ Auto mode started (5 req/s)', 'info');
     }
 }
 

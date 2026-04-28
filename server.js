@@ -53,13 +53,19 @@ let roundRobinIndex = 0;
 // AI Service URL
 const AI_SERVICE_URL = 'http://localhost:5000/predict';
 
+let currentRequestRate = 0;
+let requestCountSinceLastTick = 0;
+
 // ─── Load Decay & Server Recovery ─────────────────────────────────────────────
-// Every 3 seconds: decay load by 8% and recover degraded servers after 10s
+// Every 3 seconds: decay load by 5% and recover degraded servers after 10s
 setInterval(() => {
+  currentRequestRate = requestCountSinceLastTick / 3;
+  requestCountSinceLastTick = 0;
+  
   const now = Date.now();
   servers.forEach(s => {
     // Decay load
-    s.load = Math.max(0, s.load - 8);
+    s.load = Math.max(0, s.load - 5);
     // Auto-recover degraded servers after 10 seconds
     if (s.status === 'degraded' && s.degradedAt && (now - s.degradedAt) > 10000) {
       s.status = 'active';
@@ -115,9 +121,9 @@ async function callServer(srv, requestData) {
   try {
     const response = await axios.post(`${srv.url}/process`, requestData, { timeout: 3000 });
     const responseTime = Date.now() - startTime;
-    srv.responseTime = responseTime;
+    srv.responseTime = updateRunningAvg(srv.responseTime || 0, srv.requests, responseTime);
     // Add load based on processing (capped at 100)
-    srv.load = Math.min(100, srv.load + (Math.random() * 12 + 3));
+    srv.load = Math.min(100, srv.load + (Math.random() * 20 + 10));
     srv.requests++;
     // Update global running average
     stats.avgResponseTime = updateRunningAvg(stats.avgResponseTime, stats.responseTimeCount, responseTime);
@@ -134,8 +140,9 @@ async function callServer(srv, requestData) {
 async function roundRobinRoute(requestData) {
   const available = servers.filter(s => s.status === 'active');
   if (available.length === 0) return null;
-  roundRobinIndex = (roundRobinIndex + 1) % available.length;
+  if (roundRobinIndex >= available.length) roundRobinIndex = 0;
   const selected = available[roundRobinIndex];
+  roundRobinIndex = (roundRobinIndex + 1) % available.length;
   const result = await callServer(selected, requestData);
   stats.roundRobinCount++;
   // Track per-algo response time
@@ -173,7 +180,8 @@ async function aiRoute(requestData) {
       current_loads: servers.map(s => s.load),
       request_history: stats.algorithmHistory.slice(-10),
       time_of_day: new Date().getHours(),
-      request_rate: stats.totalRequests
+      request_rate: currentRequestRate,
+      active_servers: servers.filter(s => s.status === 'active').map(s => s.id)
     };
     const aiResponse = await axios.post(AI_SERVICE_URL, features, { timeout: 1000 });
     const recommendedServerId = aiResponse.data.recommended_server;
@@ -211,6 +219,7 @@ async function aiRoute(requestData) {
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.post('/route', async (req, res) => {
   stats.totalRequests++;
+  requestCountSinceLastTick++;
 
   let routingResult;
   switch (currentAlgorithm) {
@@ -276,6 +285,8 @@ app.post('/reset', (req, res) => {
     s.degradedAt = null;
   });
   roundRobinIndex = 0;
+  requestCountSinceLastTick = 0;
+  currentRequestRate = 0;
   broadcastMetrics();
   res.json({ success: true });
 });
@@ -300,14 +311,18 @@ function startMockServers() {
       }, processingTime);
     });
     mockApp.listen(port, () => {
-      console.log(`Mock server ${String.fromCharCode(65 + idx)} running on port ${port}`);
+      console.log(`✓ Mock server ${String.fromCharCode(65 + idx)} running on port ${port}`);
     });
   });
 }
 
-const PORT = 3000;
+// Start everything
 startMockServers();
+
+const PORT = 3000;
 server.listen(PORT, () => {
-  console.log(`\n🧠 AI Load Balancer running on http://localhost:${PORT}`);
-  console.log(`📊 Analytics Dashboard: http://localhost:${PORT}/dashboard.html\n`);
+  console.log(`\n🧠 AI Load Balancer started successfully!`);
+  console.log(`📊 Dashboard: http://localhost:${PORT}`);
+  console.log(`📈 Analytics: http://localhost:${PORT}/dashboard.html`);
+  console.log(`\nWaiting for AI service on port 5000...\n`);
 });
