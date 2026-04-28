@@ -1,136 +1,207 @@
 const socket = io();
+
 let algorithmChart = null;
 let loadChart = null;
 let responseChart = null;
 let rateChart = null;
 
-// Historical data
-let historyData = {
-    timestamps: [],
-    serverLoads: [[], [], [], []],
-    responseTimes: { 'round-robin': [], 'least-connections': [], 'ai': [] },
-    requestRates: []
+let lastTotalRequests = 0;
+let lastTimestamp = Date.now();
+
+// ── Clock ─────────────────────────────────────────────────────────────────
+function updateClock() {
+    const clockEl = document.getElementById('live-clock');
+    if (clockEl) clockEl.textContent = new Date().toLocaleTimeString();
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Chart defaults: dark theme ────────────────────────────────────────────
+Chart.defaults.color = '#7986cb';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+
+const COLORS = {
+    rr: '#FF6384',
+    lc: '#36A2EB',
+    ai: '#4CAF50',
+    serverA: '#FF6384',
+    serverB: '#36A2EB',
+    serverC: '#FFCE56',
+    serverD: '#4CAF50',
+    rate: '#6c63ff'
 };
 
-// Initialize charts
+// ── Initialise charts ─────────────────────────────────────────────────────
 function initCharts() {
-    const ctx1 = document.getElementById('algorithmChart').getContext('2d');
-    algorithmChart = new Chart(ctx1, {
-        type: 'pie',
+    const darkBg = '#0a0e27';
+
+    // Pie – Algorithm Distribution
+    algorithmChart = new Chart(document.getElementById('algorithmChart').getContext('2d'), {
+        type: 'doughnut',
         data: {
             labels: ['Round Robin', 'Least Connections', 'AI-Powered'],
             datasets: [{
                 data: [0, 0, 0],
-                backgroundColor: ['#FF6384', '#36A2EB', '#4CAF50']
+                backgroundColor: [COLORS.rr, COLORS.lc, COLORS.ai],
+                borderColor: darkBg,
+                borderWidth: 3,
+                hoverOffset: 8
             }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#7986cb', padding: 16 } }
+            }
         }
     });
-    
-    const ctx2 = document.getElementById('loadChart').getContext('2d');
-    loadChart = new Chart(ctx2, {
+
+    // Line – Server Load Trends
+    loadChart = new Chart(document.getElementById('loadChart').getContext('2d'), {
         type: 'line',
         data: {
             labels: [],
             datasets: [
-                { label: 'Server A', borderColor: '#FF6384', data: [] },
-                { label: 'Server B', borderColor: '#36A2EB', data: [] },
-                { label: 'Server C', borderColor: '#FFCE56', data: [] },
-                { label: 'Server D', borderColor: '#4CAF50', data: [] }
+                { label: 'Server A', borderColor: COLORS.serverA, backgroundColor: COLORS.serverA + '20', data: [], tension: 0.4, fill: true, pointRadius: 2 },
+                { label: 'Server B', borderColor: COLORS.serverB, backgroundColor: COLORS.serverB + '20', data: [], tension: 0.4, fill: true, pointRadius: 2 },
+                { label: 'Server C', borderColor: COLORS.serverC, backgroundColor: COLORS.serverC + '20', data: [], tension: 0.4, fill: true, pointRadius: 2 },
+                { label: 'Server D', borderColor: COLORS.serverD, backgroundColor: COLORS.serverD + '20', data: [], tension: 0.4, fill: true, pointRadius: 2 }
             ]
         },
-        options: { responsive: true, maintainAspectRatio: true }
+        options: {
+            responsive: true,
+            animation: { duration: 400 },
+            scales: {
+                y: { min: 0, max: 100, ticks: { callback: v => v + '%' } }
+            },
+            plugins: { legend: { labels: { color: '#7986cb' } } }
+        }
     });
-    
-    const ctx3 = document.getElementById('responseChart').getContext('2d');
-    responseChart = new Chart(ctx3, {
+
+    // Bar – Response Time per Algorithm
+    responseChart = new Chart(document.getElementById('responseChart').getContext('2d'), {
         type: 'bar',
         data: {
             labels: ['Round Robin', 'Least Connections', 'AI-Powered'],
-            datasets: [{ label: 'Avg Response Time (ms)', backgroundColor: '#667eea', data: [0, 0, 0] }]
+            datasets: [{
+                label: 'Avg Response Time (ms)',
+                backgroundColor: [COLORS.rr + 'cc', COLORS.lc + 'cc', COLORS.ai + 'cc'],
+                borderColor: [COLORS.rr, COLORS.lc, COLORS.ai],
+                borderWidth: 2,
+                borderRadius: 8,
+                data: [0, 0, 0]
+            }]
+        },
+        options: {
+            responsive: true,
+            animation: { duration: 400 },
+            scales: { y: { beginAtZero: true, ticks: { callback: v => v + 'ms' } } },
+            plugins: { legend: { display: false } }
         }
     });
-    
-    const ctx4 = document.getElementById('rateChart').getContext('2d');
-    rateChart = new Chart(ctx4, {
+
+    // Line – Request Rate
+    rateChart = new Chart(document.getElementById('rateChart').getContext('2d'), {
         type: 'line',
         data: {
             labels: [],
-            datasets: [{ label: 'Requests per Second', borderColor: '#ff9800', data: [] }]
+            datasets: [{
+                label: 'Requests / sec',
+                borderColor: COLORS.rate,
+                backgroundColor: COLORS.rate + '25',
+                data: [],
+                tension: 0.4,
+                fill: true,
+                pointRadius: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            animation: { duration: 400 },
+            scales: { y: { beginAtZero: true } },
+            plugins: { legend: { labels: { color: '#7986cb' } } }
         }
     });
 }
 
-// Update comparison table
+// ── Update comparison table ───────────────────────────────────────────────
 function updateComparisonTable(stats) {
     document.getElementById('rr-total').textContent = stats.roundRobinCount;
     document.getElementById('lc-total').textContent = stats.leastConnCount;
     document.getElementById('ai-total').textContent = stats.aiCount;
-    
-    // Calculate averages from history
-    const rrAvg = historyData.responseTimes['round-robin'].length > 0 
-        ? (historyData.responseTimes['round-robin'].reduce((a,b) => a+b, 0) / historyData.responseTimes['round-robin'].length).toFixed(0)
-        : 0;
-    const lcAvg = historyData.responseTimes['least-connections'].length > 0
-        ? (historyData.responseTimes['least-connections'].reduce((a,b) => a+b, 0) / historyData.responseTimes['least-connections'].length).toFixed(0)
-        : 0;
-    const aiAvg = historyData.responseTimes['ai'].length > 0
-        ? (historyData.responseTimes['ai'].reduce((a,b) => a+b, 0) / historyData.responseTimes['ai'].length).toFixed(0)
-        : 0;
-    
-    document.getElementById('rr-avg').textContent = `${rrAvg}ms`;
-    document.getElementById('lc-avg').textContent = `${lcAvg}ms`;
-    document.getElementById('ai-avg').textContent = `${aiAvg}ms`;
+
+    const perAlgo = stats.perAlgoAvgResponse || {};
+    document.getElementById('rr-avg').textContent = `${perAlgo['round-robin'] || 0}ms`;
+    document.getElementById('lc-avg').textContent = `${perAlgo['least-connections'] || 0}ms`;
+    document.getElementById('ai-avg').textContent = `${perAlgo['ai'] || 0}ms`;
 }
 
-// Socket event handlers
+// ── Socket events ─────────────────────────────────────────────────────────
 socket.on('metrics', (data) => {
-    // Update pie chart
+    const now = new Date().toLocaleTimeString();
+
+    // Doughnut – Algorithm Distribution
     algorithmChart.data.datasets[0].data = [
         data.stats.roundRobinCount,
         data.stats.leastConnCount,
         data.stats.aiCount
     ];
     algorithmChart.update();
-    
-    // Update load chart
-    const now = new Date().toLocaleTimeString();
+
+    // Load trend
+    if (loadChart.data.labels.length > 25) {
+        loadChart.data.labels.shift();
+        loadChart.data.datasets.forEach(ds => ds.data.shift());
+    }
     loadChart.data.labels.push(now);
     data.servers.forEach((server, idx) => {
         loadChart.data.datasets[idx].data.push(server.load);
-        if (loadChart.data.datasets[idx].data.length > 20) {
-            loadChart.data.datasets[idx].data.shift();
-        }
     });
-    if (loadChart.data.labels.length > 20) loadChart.data.labels.shift();
     loadChart.update();
-    
-    // Update response chart (from history)
-    if (data.recentHistory) {
-        data.recentHistory.forEach(entry => {
-            if (entry.responseTime) {
-                historyData.responseTimes[entry.algorithm].push(entry.responseTime);
-                if (historyData.responseTimes[entry.algorithm].length > 50) {
-                    historyData.responseTimes[entry.algorithm].shift();
-                }
-            }
-        });
-        
-        const rrAvg = historyData.responseTimes['round-robin'].length > 0 
-            ? historyData.responseTimes['round-robin'].reduce((a,b) => a+b, 0) / historyData.responseTimes['round-robin'].length
-            : 0;
-        const lcAvg = historyData.responseTimes['least-connections'].length > 0
-            ? historyData.responseTimes['least-connections'].reduce((a,b) => a+b, 0) / historyData.responseTimes['least-connections'].length
-            : 0;
-        const aiAvg = historyData.responseTimes['ai'].length > 0
-            ? historyData.responseTimes['ai'].reduce((a,b) => a+b, 0) / historyData.responseTimes['ai'].length
-            : 0;
-        
-        responseChart.data.datasets[0].data = [rrAvg, lcAvg, aiAvg];
-        responseChart.update();
+
+    // Response time per algorithm from backend-computed per-algo averages
+    const perAlgo = data.stats.perAlgoAvgResponse || {};
+    responseChart.data.datasets[0].data = [
+        perAlgo['round-robin'] || 0,
+        perAlgo['least-connections'] || 0,
+        perAlgo['ai'] || 0
+    ];
+    responseChart.update();
+
+    // Request rate (requests since last update / elapsed seconds)
+    const nowMs = Date.now();
+    const elapsed = (nowMs - lastTimestamp) / 1000;
+    const delta = data.stats.totalRequests - lastTotalRequests;
+    const rate = elapsed > 0 ? parseFloat((delta / elapsed).toFixed(2)) : 0;
+    lastTotalRequests = data.stats.totalRequests;
+    lastTimestamp = nowMs;
+
+    if (rateChart.data.labels.length > 25) {
+        rateChart.data.labels.shift();
+        rateChart.data.datasets[0].data.shift();
     }
-    
+    rateChart.data.labels.push(now);
+    rateChart.data.datasets[0].data.push(rate);
+    rateChart.update();
+
     updateComparisonTable(data.stats);
 });
 
-// Initialize
-initCharts();
+// ── Initial fetch ─────────────────────────────────────────────────────────
+(async () => {
+    initCharts();
+    try {
+        const res = await fetch('/metrics');
+        const data = await res.json();
+        // Pre-fill algorithm distribution
+        algorithmChart.data.datasets[0].data = [
+            data.stats.roundRobinCount,
+            data.stats.leastConnCount,
+            data.stats.aiCount
+        ];
+        algorithmChart.update();
+        updateComparisonTable(data.stats);
+    } catch (e) {
+        console.warn('Could not fetch initial metrics:', e.message);
+    }
+})();

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Load Balancer | Analytics Dashboard</title>
+    <meta name="description" content="Performance analytics for the AI-Based Intelligent Load Balancing System.">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -12,7 +13,11 @@
     <nav class="navbar">
         <div class="nav-brand">
             <span class="ai-icon">🧠</span>
-            <span>AI Intelligent Load Balancer</span>
+            AI Load Balancer
+        </div>
+        <div class="nav-center">
+            <div class="live-dot"></div>
+            <span id="live-clock">--:--:--</span>
         </div>
         <div class="nav-links">
             <a href="/">Dashboard</a>
@@ -21,44 +26,54 @@
     </nav>
 
     <div class="container">
-        <h1>📊 Performance Analytics</h1>
-        
+        <h1 class="page-heading">📊 Performance Analytics</h1>
+        <p class="page-subheading">Real-time algorithm comparison and server load trends</p>
+
         <div class="charts-grid">
             <div class="chart-card">
                 <h3>Algorithm Distribution</h3>
-                <canvas id="algorithmChart" width="400" height="400"></canvas>
+                <canvas id="algorithmChart"></canvas>
             </div>
-            
             <div class="chart-card">
                 <h3>Server Load Trends</h3>
-                <canvas id="loadChart" width="600" height="400"></canvas>
+                <canvas id="loadChart"></canvas>
             </div>
-            
             <div class="chart-card">
-                <h3>Response Time Comparison</h3>
-                <canvas id="responseChart" width="600" height="400"></canvas>
+                <h3>Response Time by Algorithm (ms)</h3>
+                <canvas id="responseChart"></canvas>
             </div>
-            
             <div class="chart-card">
                 <h3>Real-time Request Rate</h3>
-                <canvas id="rateChart" width="600" height="400"></canvas>
+                <canvas id="rateChart"></canvas>
             </div>
         </div>
-        
+
         <div class="comparison-table">
             <h3>📋 Algorithm Performance Comparison</h3>
             <table id="comparisonTable">
                 <thead>
-                    <tr><th>Metric</th><th>Round Robin</th><th>Least Connections</th><th>AI-Powered</th></tr>
+                    <tr>
+                        <th>Metric</th>
+                        <th>🔄 Round Robin</th>
+                        <th>🔗 Least Connections</th>
+                        <th>🧠 AI-Powered</th>
+                    </tr>
                 </thead>
                 <tbody>
-                    <tr><td>Total Requests</td><td id="rr-total">0</td><td id="lc-total">0</td><td id="ai-total">0</td></tr>
+                    <tr><td>Total Requests Handled</td><td id="rr-total">0</td><td id="lc-total">0</td><td id="ai-total">0</td></tr>
                     <tr><td>Avg Response Time</td><td id="rr-avg">0ms</td><td id="lc-avg">0ms</td><td id="ai-avg">0ms</td></tr>
                     <tr><td>Success Rate</td><td id="rr-rate">100%</td><td id="lc-rate">100%</td><td id="ai-rate">100%</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
+
+    <footer class="footer">
+        CS3009 Software Engineering &nbsp;|&nbsp;
+        <span>S.M. Rayyan (23K-0624)</span> &nbsp;·&nbsp;
+        <span>Ali Haider (23K-0848)</span> &nbsp;·&nbsp;
+        <span>Muhammad Zohib (23K-0602)</span>
+    </footer>
 
     <script src="analytics.js"></script>
 </body>
