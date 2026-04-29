@@ -1,245 +1,546 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Load Balancer | Smart Traffic Management</title>
-    <meta name="description" content="AI-Based Intelligent Load Balancing System – real-time server monitoring and smart traffic routing dashboard.">
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Load Balancer | Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #04091A;
+      --bg-2: #070D20;
+      --card: rgba(255,255,255,0.025);
+      --card-hover: rgba(255,255,255,0.045);
+      --border: rgba(255,255,255,0.07);
+      --border-active: rgba(0,212,255,0.3);
+      --cyan: #00D4FF;
+      --cyan-dim: rgba(0,212,255,0.12);
+      --green: #00E5A0;
+      --green-dim: rgba(0,229,160,0.12);
+      --purple: #8B5CF6;
+      --purple-dim: rgba(139,92,246,0.12);
+      --amber: #FFB300;
+      --amber-dim: rgba(255,179,0,0.12);
+      --red: #FF4466;
+      --red-dim: rgba(255,68,102,0.12);
+      --text: #CDD9F5;
+      --text-dim: #5A6A8A;
+      --text-muted: #334155;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Outfit', sans-serif;
+    }
+    html, body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse 80% 50% at 20% -10%, rgba(0,212,255,0.06) 0%, transparent 60%),
+                  radial-gradient(ellipse 60% 40% at 90% 110%, rgba(139,92,246,0.06) 0%, transparent 60%);
+    }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg-2); }
+    ::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 2px; }
+    #root { position: relative; z-index: 1; }
+
+    /* Grid lines bg */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+  </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-brand">
-            <span class="ai-icon">🧠</span>
-            AI Load Balancer
-        </div>
-        <div class="nav-center">
-            <div class="live-dot"></div>
-            <span id="live-clock">--:--:--</span>
-            &nbsp;|&nbsp; Uptime: <span id="uptime">0s</span>
-        </div>
-        <div class="nav-links">
-            <a href="/" class="active" id="nav-dashboard">Dashboard</a>
-            <a href="/dashboard.html" id="nav-analytics">Analytics</a>
-        </div>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ── Utility: format uptime ────────────────────────────────────────────────────
+function formatUptime(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m ${s%60}s`;
+  return `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`;
+}
+
+// ── Navbar ────────────────────────────────────────────────────────────────────
+function Navbar({ clock, uptime }) {
+  return (
+    <nav style={{
+      background: 'rgba(4,9,26,0.92)', backdropFilter: 'blur(20px)',
+      borderBottom: '1px solid var(--border)', padding: '0 2.5rem',
+      height: '56px', display: 'flex', alignItems: 'center',
+      justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="12" stroke="var(--cyan)" strokeWidth="1.5"/>
+          <circle cx="14" cy="14" r="6" fill="var(--cyan)" opacity="0.15"/>
+          <circle cx="14" cy="14" r="3" fill="var(--cyan)"/>
+          <line x1="14" y1="2" x2="14" y2="7" stroke="var(--cyan)" strokeWidth="1.5"/>
+          <line x1="14" y1="21" x2="14" y2="26" stroke="var(--cyan)" strokeWidth="1.5"/>
+          <line x1="2" y1="14" x2="7" y2="14" stroke="var(--cyan)" strokeWidth="1.5"/>
+          <line x1="21" y1="14" x2="26" y2="14" stroke="var(--cyan)" strokeWidth="1.5"/>
+        </svg>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: '1rem', letterSpacing: '.04em', color: 'var(--cyan)' }}>
+          AI LOAD BALANCER
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.78rem', fontFamily: 'var(--mono)', color: 'var(--text-dim)' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', boxShadow: '0 0 8px var(--green)', animation: 'pulse-live 2s infinite' }}/>
+          LIVE
+        </span>
+        <span style={{ color: 'var(--text)', fontWeight: 500 }}>{clock}</span>
+        <span>·</span>
+        <span>UP {uptime}</span>
+      </div>
+
+      <div style={{ display: 'flex', gap: '4px' }}>
+        {[
+          { label: 'Dashboard', href: '/', active: true },
+          { label: 'Analytics', href: '/dashboard.html', active: false },
+        ].map(({ label, href, active }) => (
+          <a key={label} href={href} style={{
+            textDecoration: 'none', padding: '5px 14px', borderRadius: '6px',
+            fontSize: '0.82rem', fontWeight: 600, letterSpacing: '0.02em',
+            background: active ? 'var(--cyan-dim)' : 'transparent',
+            border: `1px solid ${active ? 'var(--border-active)' : 'transparent'}`,
+            color: active ? 'var(--cyan)' : 'var(--text-dim)',
+            transition: 'all 0.2s',
+          }}>{label}</a>
+        ))}
+      </div>
     </nav>
+  );
+}
 
-    <div class="container">
+// ── Card wrapper ──────────────────────────────────────────────────────────────
+function Card({ children, style, glow }) {
+  const glowStyle = glow ? { borderColor: 'var(--border-active)', boxShadow: '0 0 30px rgba(0,212,255,0.07)' } : {};
+  return (
+    <div style={{
+      background: 'var(--card)', border: '1px solid var(--border)',
+      borderRadius: '14px', backdropFilter: 'blur(20px)', padding: '1.25rem',
+      marginBottom: '1.25rem', transition: 'border-color .3s',
+      ...glowStyle, ...style,
+    }}>{children}</div>
+  );
+}
 
-        <!-- Algorithm Selector -->
-        <div class="glass-card">
-            <div class="card-title">⚡ Load Balancing Algorithm</div>
-            <div class="algorithm-selector">
-                <button class="algo-btn" data-algo="round-robin" id="btn-rr">🔄 Round Robin</button>
-                <button class="algo-btn" data-algo="least-connections" id="btn-lc">🔗 Least Connections</button>
-                <button class="algo-btn active" data-algo="ai" id="btn-ai">🧠 AI-Powered</button>
-            </div>
-            <div class="current-algorithm">
-                Active Algorithm: <span id="current-algo">AI-Powered</span>
-            </div>
-        </div>
-
-        <!-- AI Confidence Panel (only relevant in AI mode) -->
-        <div class="glass-card" id="ai-panel-card">
-            <div class="card-title">🤖 AI Prediction Engine</div>
-            <div class="ai-panel">
-                <div class="ai-metric">
-                    <div class="ai-metric-label">Confidence</div>
-                    <div class="ai-metric-value" id="ai-confidence">—</div>
-                </div>
-                <div class="ai-metric">
-                    <div class="ai-metric-label">Recommended Server</div>
-                    <div class="ai-metric-value" id="ai-recommended">—</div>
-                </div>
-                <div class="ai-reasoning" id="ai-reasoning">
-                    Waiting for first AI routing decision…
-                </div>
-            </div>
-        </div>
-
-        <!-- Server Status Cards -->
-        <div class="servers-grid">
-            <div class="server-card" data-server="1">
-                <div class="server-header">
-                    <div class="server-name-row">
-                        <div class="server-dot active" id="dot-1"></div>
-                        <span class="server-name">Server A</span>
-                    </div>
-                    <span class="server-status status-active" id="status-1">Active</span>
-                </div>
-                <div class="load-label">
-                    <span class="load-label-text">CPU Load</span>
-                    <span class="load-value-badge"><span class="load-value">0</span>%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 0%"></div>
-                </div>
-                <div class="server-stats">
-                    <div class="server-stat-item">
-                        <span class="server-stat-value requests-count">0</span>
-                        <span class="server-stat-label">Requests</span>
-                    </div>
-                    <div class="server-stat-item">
-                        <span class="server-stat-value response-time">0</span>
-                        <span class="server-stat-label">Resp. (ms)</span>
-                    </div>
-                    <div class="server-stat-item">
-                        <span class="server-stat-value" id="load-pct-1">Low</span>
-                        <span class="server-stat-label">Load Level</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="server-card" data-server="2">
-                <div class="server-header">
-                    <div class="server-name-row">
-                        <div class="server-dot active" id="dot-2"></div>
-                        <span class="server-name">Server B</span>
-                    </div>
-                    <span class="server-status status-active" id="status-2">Active</span>
-                </div>
-                <div class="load-label">
-                    <span class="load-label-text">CPU Load</span>
-                    <span class="load-value-badge"><span class="load-value">0</span>%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 0%"></div>
-                </div>
-                <div class="server-stats">
-                    <div class="server-stat-item">
-                        <span class="server-stat-value requests-count">0</span>
-                        <span class="server-stat-label">Requests</span>
-                    </div>
-                    <div class="server-stat-item">
-                        <span class="server-stat-value response-time">0</span>
-                        <span class="server-stat-label">Resp. (ms)</span>
-                    </div>
-                    <div class="server-stat-item">
-                        <span class="server-stat-value" id="load-pct-2">Low</span>
-                        <span class="server-stat-label">Load Level</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="server-card" data-server="3">
-                <div class="server-header">
-                    <div class="server-name-row">
-                        <div class="server-dot active" id="dot-3"></div>
-                        <span class="server-name">Server C</span>
-                    </div>
-                    <span class="server-status status-active" id="status-3">Active</span>
-                </div>
-                <div class="load-label">
-                    <span class="load-label-text">CPU Load</span>
-                    <span class="load-value-badge"><span class="load-value">0</span>%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 0%"></div>
-                </div>
-                <div class="server-stats">
-                    <div class="server-stat-item">
-                        <span class="server-stat-value requests-count">0</span>
-                        <span class="server-stat-label">Requests</span>
-                    </div>
-                    <div class="server-stat-item">
-                        <span class="server-stat-value response-time">0</span>
-                        <span class="server-stat-label">Resp. (ms)</span>
-                    </div>
-                    <div class="server-stat-item">
-                        <span class="server-stat-value" id="load-pct-3">Low</span>
-                        <span class="server-stat-label">Load Level</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="server-card" data-server="4">
-                <div class="server-header">
-                    <div class="server-name-row">
-                        <div class="server-dot active" id="dot-4"></div>
-                        <span class="server-name">Server D</span>
-                    </div>
-                    <span class="server-status status-active" id="status-4">Active</span>
-                </div>
-                <div class="load-label">
-                    <span class="load-label-text">CPU Load</span>
-                    <span class="load-value-badge"><span class="load-value">0</span>%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 0%"></div>
-                </div>
-                <div class="server-stats">
-                    <div class="server-stat-item">
-                        <span class="server-stat-value requests-count">0</span>
-                        <span class="server-stat-label">Requests</span>
-                    </div>
-                    <div class="server-stat-item">
-                        <span class="server-stat-value response-time">0</span>
-                        <span class="server-stat-label">Resp. (ms)</span>
-                    </div>
-                    <div class="server-stat-item">
-                        <span class="server-stat-value" id="load-pct-4">Low</span>
-                        <span class="server-stat-label">Load Level</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Global Stats -->
-        <div class="glass-card">
-            <div class="card-title">📈 System Performance</div>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-value" id="total-requests">0</div>
-                    <div class="stat-label">Total Requests</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="avg-response">0</div>
-                    <div class="stat-label">Avg Response (ms)</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="rr-count">0</div>
-                    <div class="stat-label">Round Robin</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="lc-count">0</div>
-                    <div class="stat-label">Least Conn.</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="ai-count">0</div>
-                    <div class="stat-label">AI Routing</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Request Simulator -->
-        <div class="glass-card">
-            <div class="card-title">🎮 Request Simulator</div>
-            <div class="simulator-controls">
-                <button id="send-single" class="btn-primary">⚡ Send Request</button>
-                <div class="batch-controls">
-                    <input type="number" id="batch-size" placeholder="Batch" value="10" min="1" max="100">
-                    <button id="send-batch" class="btn-secondary">📦 Send Batch</button>
-                </div>
-                <button id="auto-mode" class="btn-auto">▶ Auto Mode</button>
-                <button id="reset-stats" class="btn-danger">🗑 Reset</button>
-            </div>
-            <div id="request-log" class="request-log">
-                <div class="log-header">📋 Live Request Log</div>
-                <div class="log-content"></div>
-            </div>
-        </div>
-
+function SectionLabel({ children }) {
+  return (
+    <div style={{
+      fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em',
+      textTransform: 'uppercase', color: 'var(--text-dim)',
+      marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px',
+    }}>
+      <span style={{ width: 16, height: 1, background: 'var(--cyan)', display: 'inline-block', opacity: 0.6 }}/>
+      {children}
     </div>
+  );
+}
 
-    <footer class="footer">
-        CS3009 Software Engineering &nbsp;|&nbsp;
-        <span>S.M. Rayyan (23K-0624)</span> &nbsp;·&nbsp;
-        <span>Ali Haider (23K-0848)</span> &nbsp;·&nbsp;
-        <span>Muhammad Zohib (23K-0602)</span>
-    </footer>
+// ── Algorithm Selector ────────────────────────────────────────────────────────
+const ALGOS = [
+  { id: 'round-robin', label: 'Round Robin', icon: '↺', color: '--purple' },
+  { id: 'least-connections', label: 'Least Connections', icon: '⇌', color: '--amber' },
+  { id: 'ai', label: 'AI-Powered', icon: '◈', color: '--cyan' },
+];
 
-    <script src="script.js"></script>
+function AlgorithmSelector({ current, onChange }) {
+  return (
+    <Card>
+      <SectionLabel>Load Balancing Mode</SectionLabel>
+      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+        {ALGOS.map(({ id, label, icon, color }) => {
+          const active = current === id;
+          const c = `var(${color})`;
+          return (
+            <button key={id} onClick={() => onChange(id)} style={{
+              padding: '0.55rem 1.25rem', borderRadius: '8px', cursor: 'pointer',
+              fontFamily: 'var(--sans)', fontWeight: 600, fontSize: '0.85rem',
+              border: `1px solid ${active ? c : 'var(--border)'}`,
+              background: active ? `rgba(var(${color}-rgb, 0,212,255), 0.12)` : 'transparent',
+              color: active ? c : 'var(--text-dim)',
+              transition: 'all 0.2s',
+              boxShadow: active ? `0 4px 16px rgba(0,0,0,0.3), 0 0 12px ${c}33` : 'none',
+            }}>
+              <span style={{ marginRight: 6, fontFamily: 'var(--mono)' }}>{icon}</span>
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
+        ACTIVE: <span style={{ color: 'var(--cyan)', fontWeight: 600 }}>
+          {ALGOS.find(a => a.id === current)?.label?.toUpperCase() || '—'}
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+// ── AI Panel ──────────────────────────────────────────────────────────────────
+function AIPanel({ confidence, reasoning, currentAlgo }) {
+  const visible = currentAlgo === 'ai';
+  return (
+    <Card glow={visible && confidence !== null}>
+      <SectionLabel>AI Prediction Engine</SectionLabel>
+      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ flex: '0 0 130px', background: 'var(--cyan-dim)', border: '1px solid var(--border-active)', borderRadius: 10, padding: '1rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-dim)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Confidence</div>
+          <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: '1.8rem', color: 'var(--cyan)' }}>
+            {confidence !== null ? `${(confidence * 100).toFixed(0)}%` : '—'}
+          </div>
+        </div>
+        <div style={{
+          flex: 1, minWidth: 200, background: 'rgba(139,92,246,0.06)',
+          border: '1px solid rgba(139,92,246,0.2)', borderRadius: 10, padding: '1rem',
+          fontSize: '0.82rem', color: 'var(--text-dim)', lineHeight: 1.7, fontFamily: 'var(--mono)',
+        }}>
+          {reasoning || 'Waiting for first AI routing decision…'}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ── Server Card ───────────────────────────────────────────────────────────────
+function ServerCard({ server, isRouting }) {
+  const load = server.load;
+  const fillColor = load >= 80 ? 'var(--red)' : load >= 50 ? 'var(--amber)' : 'var(--green)';
+  const statusColor = server.status === 'active' ? 'var(--green)' : 'var(--amber)';
+
+  return (
+    <div style={{
+      background: isRouting ? 'rgba(0,229,160,0.04)' : 'var(--card)',
+      border: `1px solid ${isRouting ? 'rgba(0,229,160,0.35)' : 'var(--border)'}`,
+      borderRadius: 14, padding: '1.25rem',
+      backdropFilter: 'blur(20px)', transition: 'all 0.3s',
+      boxShadow: isRouting ? '0 0 24px rgba(0,229,160,0.12)' : 'none',
+      position: 'relative', overflow: 'hidden',
+    }}>
+      {/* Top accent line */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+        background: `linear-gradient(90deg, ${fillColor}, transparent)`,
+        opacity: isRouting ? 1 : 0.4,
+      }}/>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%', display: 'inline-block',
+            background: statusColor,
+            boxShadow: `0 0 8px ${statusColor}`,
+            animation: server.status === 'active' ? 'pulse-live 2s infinite' : 'none',
+          }}/>
+          <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{server.name}</span>
+        </div>
+        <span style={{
+          fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+          padding: '2px 8px', borderRadius: 20,
+          background: server.status === 'active' ? 'var(--green-dim)' : 'var(--amber-dim)',
+          color: statusColor, border: `1px solid ${statusColor}33`,
+        }}>
+          {server.status}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.76rem' }}>
+        <span style={{ color: 'var(--text-dim)' }}>CPU Load</span>
+        <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: fillColor }}>{load}%</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', marginBottom: '1rem' }}>
+        <div style={{
+          height: '100%', borderRadius: 3,
+          width: `${load}%`, background: fillColor,
+          transition: 'width 0.5s ease, background 0.5s ease',
+          boxShadow: load >= 80 ? `0 0 8px ${fillColor}99` : 'none',
+        }}/>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', borderTop: '1px solid var(--border)', paddingTop: '0.9rem' }}>
+        {[
+          { val: server.requests, label: 'Requests' },
+          { val: `${server.responseTime}ms`, label: 'Resp. Time' },
+          { val: load >= 80 ? 'High' : load >= 50 ? 'Med' : 'Low', label: 'Load Level' },
+        ].map(({ val, label }) => (
+          <div key={label} style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text)' }}>{val}</div>
+            <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)', marginTop: 2, letterSpacing: '0.04em' }}>{label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Stats Panel ───────────────────────────────────────────────────────────────
+function StatsPanel({ stats }) {
+  const items = [
+    { val: stats.totalRequests, label: 'Total Requests', color: 'var(--cyan)' },
+    { val: `${Math.round(stats.avgResponseTime)}ms`, label: 'Avg Response', color: 'var(--green)' },
+    { val: stats.roundRobinCount, label: 'Round Robin', color: 'var(--purple)' },
+    { val: stats.leastConnCount, label: 'Least Conn.', color: 'var(--amber)' },
+    { val: stats.aiCount, label: 'AI Routing', color: 'var(--cyan)' },
+  ];
+  return (
+    <Card>
+      <SectionLabel>System Performance</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: '0.75rem' }}>
+        {items.map(({ val, label, color }) => (
+          <div key={label} style={{
+            background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)',
+            borderRadius: 10, padding: '0.9rem', textAlign: 'center',
+          }}>
+            <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: '1.6rem', color, letterSpacing: '-0.02em' }}>{val}</div>
+            <div style={{ fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ── Request Log Entry ─────────────────────────────────────────────────────────
+function LogEntry({ entry }) {
+  const typeColor = { success: 'var(--green)', error: 'var(--red)', info: 'var(--cyan)' };
+  return (
+    <div style={{
+      padding: '5px 10px', fontFamily: 'var(--mono)', fontSize: '0.75rem',
+      color: typeColor[entry.type] || 'var(--text-dim)',
+      borderBottom: '1px solid rgba(255,255,255,0.03)',
+      animation: 'fadeIn 0.25s ease',
+    }}>
+      {entry.text}
+    </div>
+  );
+}
+
+// ── Request Simulator ─────────────────────────────────────────────────────────
+function RequestSimulator({ onLog }) {
+  const [batchSize, setBatchSize] = useState(10);
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [sending, setSending] = useState(false);
+  const autoRef = useRef(null);
+
+  const sendRequest = useCallback(async (silent = false) => {
+    setSending(true);
+    try {
+      const r = await fetch('/route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: 'test', timestamp: Date.now() }),
+      });
+      const d = await r.json();
+      if (!silent) onLog({ type: 'success', text: `→ ${d.server} [${d.algorithm}] ${d.responseTime}ms` });
+    } catch (e) {
+      if (!silent) onLog({ type: 'error', text: `✗ Request failed: ${e.message}` });
+    }
+    setSending(false);
+  }, [onLog]);
+
+  const sendBatch = async () => {
+    onLog({ type: 'info', text: `⟨ Sending batch of ${batchSize} requests… ⟩` });
+    for (let i = 0; i < batchSize; i++) {
+      await sendRequest(true);
+      await new Promise(r => setTimeout(r, 80));
+    }
+    onLog({ type: 'info', text: `⟨ Batch complete ⟩` });
+  };
+
+  const toggleAuto = () => {
+    if (autoRunning) {
+      clearInterval(autoRef.current);
+      setAutoRunning(false);
+      onLog({ type: 'info', text: '■ Auto mode stopped' });
+    } else {
+      setAutoRunning(true);
+      onLog({ type: 'info', text: '▶ Auto mode started (1 req/500ms)' });
+      autoRef.current = setInterval(() => sendRequest(true), 500);
+    }
+  };
+
+  useEffect(() => () => clearInterval(autoRef.current), []);
+
+  const btnBase = {
+    padding: '0.55rem 1.15rem', borderRadius: 8, cursor: 'pointer',
+    fontFamily: 'var(--sans)', fontWeight: 600, fontSize: '0.82rem',
+    border: '1px solid transparent', transition: 'all 0.2s',
+  };
+
+  return (
+    <Card>
+      <SectionLabel>Request Simulator</SectionLabel>
+      <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <button onClick={() => sendRequest()} disabled={sending} style={{
+          ...btnBase, background: 'var(--cyan-dim)', borderColor: 'var(--border-active)',
+          color: 'var(--cyan)', opacity: sending ? 0.6 : 1,
+        }}>⚡ Send Request</button>
+
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input type="number" value={batchSize} min={1} max={100}
+            onChange={e => setBatchSize(+e.target.value)}
+            style={{
+              width: 72, padding: '0.5rem 0.75rem',
+              background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)',
+              borderRadius: 8, color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: '0.82rem', outline: 'none',
+            }}/>
+          <button onClick={sendBatch} style={{
+            ...btnBase, background: 'var(--green-dim)',
+            borderColor: 'rgba(0,229,160,0.3)', color: 'var(--green)',
+          }}>⊞ Batch</button>
+        </div>
+
+        <button onClick={toggleAuto} style={{
+          ...btnBase,
+          background: autoRunning ? 'var(--red-dim)' : 'var(--amber-dim)',
+          borderColor: autoRunning ? 'rgba(255,68,102,0.3)' : 'rgba(255,179,0,0.3)',
+          color: autoRunning ? 'var(--red)' : 'var(--amber)',
+        }}>{autoRunning ? '■ Stop Auto' : '▶ Auto Mode'}</button>
+
+        <button onClick={async () => {
+          await fetch('/reset', { method: 'POST' });
+          onLog({ type: 'info', text: '◯ Statistics reset' });
+        }} style={{
+          ...btnBase, background: 'transparent', borderColor: 'var(--border)',
+          color: 'var(--text-dim)',
+        }}>⌫ Reset</button>
+      </div>
+    </Card>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+function App() {
+  const startTime = useRef(Date.now());
+  const [clock, setClock] = useState('--:--:--');
+  const [uptime, setUptime] = useState('0s');
+  const [algorithm, setAlgorithm] = useState('ai');
+  const [servers, setServers] = useState([
+    { id:1, name:'Server A', load:0, requests:0, responseTime:0, status:'active' },
+    { id:2, name:'Server B', load:0, requests:0, responseTime:0, status:'active' },
+    { id:3, name:'Server C', load:0, requests:0, responseTime:0, status:'active' },
+    { id:4, name:'Server D', load:0, requests:0, responseTime:0, status:'active' },
+  ]);
+  const [stats, setStats] = useState({ totalRequests:0, avgResponseTime:0, roundRobinCount:0, leastConnCount:0, aiCount:0 });
+  const [aiConfidence, setAiConfidence] = useState(null);
+  const [aiReasoning, setAiReasoning] = useState('');
+  const [lastRouted, setLastRouted] = useState(null);
+  const [log, setLog] = useState([{ type: 'info', text: '◈ System initializing…' }]);
+
+  const addLog = useCallback((entry) => {
+    const ts = new Date().toLocaleTimeString('en', { hour12: false });
+    setLog(prev => [{ ...entry, text: `[${ts}] ${entry.text}` }, ...prev].slice(0, 100));
+  }, []);
+
+  // Clock
+  useEffect(() => {
+    const t = setInterval(() => {
+      setClock(new Date().toLocaleTimeString('en', { hour12: false }));
+      setUptime(formatUptime(Date.now() - startTime.current));
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Socket
+  useEffect(() => {
+    const socket = io();
+    socket.on('metrics', (data) => {
+      if (data.servers) setServers(data.servers);
+      if (data.stats) {
+        setStats(data.stats);
+        if (data.stats.lastAiConfidence !== null) setAiConfidence(data.stats.lastAiConfidence);
+        if (data.stats.lastAiReasoning) setAiReasoning(data.stats.lastAiReasoning);
+      }
+      if (data.currentAlgorithm) setAlgorithm(data.currentAlgorithm);
+      if (data.recentHistory?.length > 0) {
+        const last = data.recentHistory[data.recentHistory.length - 1];
+        setLastRouted(last?.server);
+      }
+    });
+    // Fetch initial
+    fetch('/metrics').then(r => r.json()).then(data => {
+      if (data.servers) setServers(data.servers);
+      if (data.stats) setStats(data.stats);
+      if (data.currentAlgorithm) setAlgorithm(data.currentAlgorithm);
+    });
+    return () => socket.disconnect();
+  }, []);
+
+  const handleAlgoChange = async (algo) => {
+    await fetch('/algorithm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ algorithm: algo }),
+    });
+    setAlgorithm(algo);
+    addLog({ type: 'info', text: `◈ Algorithm switched → ${ALGOS.find(a=>a.id===algo)?.label}` });
+  };
+
+  return (
+    <div>
+      <style>{`
+        @keyframes pulse-live {
+          0%,100% { box-shadow: 0 0 0 0 currentColor; }
+          50% { box-shadow: 0 0 8px 3px rgba(0,229,160,0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+      <Navbar clock={clock} uptime={uptime} />
+
+      <div style={{ maxWidth: 1440, margin: '0 auto', padding: '1.5rem 2rem' }}>
+        <AlgorithmSelector current={algorithm} onChange={handleAlgoChange} />
+        <AIPanel confidence={aiConfidence} reasoning={aiReasoning} currentAlgo={algorithm} />
+
+        {/* Server Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px,1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+          {servers.map(s => (
+            <ServerCard key={s.id} server={s} isRouting={lastRouted === s.name} />
+          ))}
+        </div>
+
+        <StatsPanel stats={stats} />
+        <RequestSimulator onLog={addLog} />
+
+        {/* Live Log */}
+        <Card>
+          <SectionLabel>Live Request Log</SectionLabel>
+          <div style={{
+            maxHeight: 220, overflowY: 'auto',
+            background: 'rgba(0,0,0,0.25)', borderRadius: 8,
+            border: '1px solid var(--border)',
+          }}>
+            {log.map((e, i) => <LogEntry key={i} entry={e} />)}
+          </div>
+        </Card>
+      </div>
+
+      <footer style={{ textAlign: 'center', padding: '1.5rem 2rem', borderTop: '1px solid var(--border)', fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--mono)' }}>
+        CS3009 Software Engineering &nbsp;·&nbsp;
+        <span style={{ color: 'var(--cyan)' }}>S.M. Rayyan (23K-0624)</span> &nbsp;·&nbsp;
+        <span style={{ color: 'var(--purple)' }}>Ali Haider (23K-0848)</span> &nbsp;·&nbsp;
+        <span style={{ color: 'var(--green)' }}>Muhammad Zohib (23K-0602)</span>
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
 </body>
 </html>

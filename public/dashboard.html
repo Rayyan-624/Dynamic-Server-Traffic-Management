@@ -1,80 +1,429 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Load Balancer | Analytics Dashboard</title>
-    <meta name="description" content="Performance analytics for the AI-Based Intelligent Load Balancing System.">
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Load Balancer | Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #04091A; --bg-2: #070D20;
+      --card: rgba(255,255,255,0.025); --border: rgba(255,255,255,0.07);
+      --border-active: rgba(0,212,255,0.3);
+      --cyan: #00D4FF; --cyan-dim: rgba(0,212,255,0.12);
+      --green: #00E5A0; --green-dim: rgba(0,229,160,0.12);
+      --purple: #8B5CF6; --purple-dim: rgba(139,92,246,0.12);
+      --amber: #FFB300; --amber-dim: rgba(255,179,0,0.12);
+      --red: #FF4466; --red-dim: rgba(255,68,102,0.12);
+      --text: #CDD9F5; --text-dim: #5A6A8A; --text-muted: #334155;
+      --mono: 'JetBrains Mono', monospace; --sans: 'Outfit', sans-serif;
+    }
+    html, body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+    body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse 80% 50% at 20% -10%, rgba(0,212,255,0.06) 0%, transparent 60%),
+                  radial-gradient(ellipse 60% 40% at 90% 110%, rgba(139,92,246,0.06) 0%, transparent 60%);
+    }
+    body::after {
+      content: ''; position: fixed; inset: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg-2); }
+    ::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 2px; }
+    #root { position: relative; z-index: 1; }
+  </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-brand">
-            <span class="ai-icon">🧠</span>
-            AI Load Balancer
-        </div>
-        <div class="nav-center">
-            <div class="live-dot"></div>
-            <span id="live-clock">--:--:--</span>
-        </div>
-        <div class="nav-links">
-            <a href="/">Dashboard</a>
-            <a href="/dashboard.html" class="active">Analytics</a>
-        </div>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// Chart.js global defaults
+Chart.defaults.color = '#5A6A8A';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 11;
+
+function Navbar({ clock }) {
+  return (
+    <nav style={{
+      background: 'rgba(4,9,26,0.92)', backdropFilter: 'blur(20px)',
+      borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '0 2.5rem',
+      height: '56px', display: 'flex', alignItems: 'center',
+      justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="12" stroke="#00D4FF" strokeWidth="1.5"/>
+          <circle cx="14" cy="14" r="6" fill="#00D4FF" opacity="0.15"/>
+          <circle cx="14" cy="14" r="3" fill="#00D4FF"/>
+          <line x1="14" y1="2" x2="14" y2="7" stroke="#00D4FF" strokeWidth="1.5"/>
+          <line x1="14" y1="21" x2="14" y2="26" stroke="#00D4FF" strokeWidth="1.5"/>
+          <line x1="2" y1="14" x2="7" y2="14" stroke="#00D4FF" strokeWidth="1.5"/>
+          <line x1="21" y1="14" x2="26" y2="14" stroke="#00D4FF" strokeWidth="1.5"/>
+        </svg>
+        <span style={{ fontWeight: 700, fontSize: '1rem', letterSpacing: '.04em', color: '#00D4FF' }}>AI LOAD BALANCER</span>
+      </div>
+      <span style={{ fontFamily: 'var(--mono)', fontSize: '0.78rem', color: 'var(--text-dim)' }}>{clock}</span>
+      <div style={{ display: 'flex', gap: '4px' }}>
+        {[{ label: 'Dashboard', href: '/', active: false }, { label: 'Analytics', href: '/dashboard.html', active: true }].map(({ label, href, active }) => (
+          <a key={label} href={href} style={{
+            textDecoration: 'none', padding: '5px 14px', borderRadius: '6px',
+            fontSize: '0.82rem', fontWeight: 600,
+            background: active ? 'var(--cyan-dim)' : 'transparent',
+            border: `1px solid ${active ? 'var(--border-active)' : 'transparent'}`,
+            color: active ? 'var(--cyan)' : 'var(--text-dim)',
+          }}>{label}</a>
+        ))}
+      </div>
     </nav>
+  );
+}
 
-    <div class="container">
-        <h1 class="page-heading">📊 Performance Analytics</h1>
-        <p class="page-subheading">Real-time algorithm comparison and server load trends</p>
+function Card({ children, style }) {
+  return (
+    <div style={{
+      background: 'var(--card)', border: '1px solid var(--border)',
+      borderRadius: 14, backdropFilter: 'blur(20px)', padding: '1.25rem',
+      ...style,
+    }}>{children}</div>
+  );
+}
 
-        <div class="charts-grid">
-            <div class="chart-card">
-                <h3>Algorithm Distribution</h3>
-                <canvas id="algorithmChart"></canvas>
-            </div>
-            <div class="chart-card">
-                <h3>Server Load Trends</h3>
-                <canvas id="loadChart"></canvas>
-            </div>
-            <div class="chart-card">
-                <h3>Response Time by Algorithm (ms)</h3>
-                <canvas id="responseChart"></canvas>
-            </div>
-            <div class="chart-card">
-                <h3>Real-time Request Rate</h3>
-                <canvas id="rateChart"></canvas>
-            </div>
-        </div>
-
-        <div class="comparison-table">
-            <h3>📋 Algorithm Performance Comparison</h3>
-            <table id="comparisonTable">
-                <thead>
-                    <tr>
-                        <th>Metric</th>
-                        <th>🔄 Round Robin</th>
-                        <th>🔗 Least Connections</th>
-                        <th>🧠 AI-Powered</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td>Total Requests Handled</td><td id="rr-total">0</td><td id="lc-total">0</td><td id="ai-total">0</td></tr>
-                    <tr><td>Avg Response Time</td><td id="rr-avg">0ms</td><td id="lc-avg">0ms</td><td id="ai-avg">0ms</td></tr>
-                    <tr><td>Success Rate</td><td id="rr-rate">100%</td><td id="lc-rate">100%</td><td id="ai-rate">100%</td></tr>
-                </tbody>
-            </table>
-        </div>
+function SectionLabel({ children }) {
+  return (
+    <div style={{
+      fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em',
+      textTransform: 'uppercase', color: 'var(--text-dim)',
+      marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px',
+    }}>
+      <span style={{ width: 16, height: 1, background: 'var(--cyan)', display: 'inline-block', opacity: 0.6 }}/>
+      {children}
     </div>
+  );
+}
 
-    <footer class="footer">
-        CS3009 Software Engineering &nbsp;|&nbsp;
-        <span>S.M. Rayyan (23K-0624)</span> &nbsp;·&nbsp;
-        <span>Ali Haider (23K-0848)</span> &nbsp;·&nbsp;
-        <span>Muhammad Zohib (23K-0602)</span>
-    </footer>
+// ── Chart: Algorithm Distribution (Doughnut) ──────────────────────────────────
+function AlgorithmChart({ counts }) {
+  const ref = useRef(null);
+  const chartRef = useRef(null);
 
-    <script src="analytics.js"></script>
+  useEffect(() => {
+    const ctx = ref.current.getContext('2d');
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Round Robin', 'Least Connections', 'AI-Powered'],
+        datasets: [{
+          data: [counts.rr, counts.lc, counts.ai],
+          backgroundColor: ['rgba(139,92,246,0.8)', 'rgba(255,179,0,0.8)', 'rgba(0,212,255,0.8)'],
+          borderColor: ['#8B5CF6', '#FFB300', '#00D4FF'],
+          borderWidth: 2,
+          hoverOffset: 8,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        cutout: '65%',
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 16, boxWidth: 12, color: '#5A6A8A' } },
+        },
+      },
+    });
+    return () => chartRef.current?.destroy();
+  }, []);
+
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.data.datasets[0].data = [counts.rr, counts.lc, counts.ai];
+      chartRef.current.update('none');
+    }
+  }, [counts]);
+
+  return <canvas ref={ref} />;
+}
+
+// ── Chart: Server Load Trends (Line) ──────────────────────────────────────────
+function LoadTrendChart({ history }) {
+  const ref = useRef(null);
+  const chartRef = useRef(null);
+
+  useEffect(() => {
+    const ctx = ref.current.getContext('2d');
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: Array.from({ length: 20 }, (_, i) => i + 1),
+        datasets: [
+          { label: 'Server A', data: [], borderColor: '#00D4FF', backgroundColor: 'rgba(0,212,255,0.05)', borderWidth: 2, pointRadius: 2, tension: 0.4, fill: true },
+          { label: 'Server B', data: [], borderColor: '#8B5CF6', backgroundColor: 'rgba(139,92,246,0.05)', borderWidth: 2, pointRadius: 2, tension: 0.4, fill: true },
+          { label: 'Server C', data: [], borderColor: '#00E5A0', backgroundColor: 'rgba(0,229,160,0.05)', borderWidth: 2, pointRadius: 2, tension: 0.4, fill: true },
+          { label: 'Server D', data: [], borderColor: '#FFB300', backgroundColor: 'rgba(255,179,0,0.05)', borderWidth: 2, pointRadius: 2, tension: 0.4, fill: true },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        animation: { duration: 300 },
+        scales: {
+          y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => `${v}%` } },
+          x: { grid: { display: false } },
+        },
+        plugins: { legend: { position: 'bottom', labels: { padding: 12, boxWidth: 10, color: '#5A6A8A' } } },
+      },
+    });
+    return () => chartRef.current?.destroy();
+  }, []);
+
+  useEffect(() => {
+    if (!chartRef.current || !history.length) return;
+    const recent = history.slice(-20);
+    chartRef.current.data.labels = recent.map((_, i) => i + 1);
+    chartRef.current.data.datasets.forEach((ds, i) => {
+      ds.data = recent.map(h => h.serverLoads?.[i] ?? 0);
+    });
+    chartRef.current.update('none');
+  }, [history]);
+
+  return <canvas ref={ref} />;
+}
+
+// ── Chart: Response Time by Algorithm (Bar) ───────────────────────────────────
+function ResponseTimeChart({ perAlgo }) {
+  const ref = useRef(null);
+  const chartRef = useRef(null);
+
+  useEffect(() => {
+    const ctx = ref.current.getContext('2d');
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Round Robin', 'Least Conn.', 'AI-Powered'],
+        datasets: [{
+          label: 'Avg Response Time (ms)',
+          data: [0, 0, 0],
+          backgroundColor: ['rgba(139,92,246,0.7)', 'rgba(255,179,0,0.7)', 'rgba(0,212,255,0.7)'],
+          borderColor: ['#8B5CF6', '#FFB300', '#00D4FF'],
+          borderWidth: 2, borderRadius: 6,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => `${v}ms` } },
+          x: { grid: { display: false } },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+    return () => chartRef.current?.destroy();
+  }, []);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    chartRef.current.data.datasets[0].data = [
+      perAlgo['round-robin'] || 0,
+      perAlgo['least-connections'] || 0,
+      perAlgo['ai'] || 0,
+    ];
+    chartRef.current.update('none');
+  }, [perAlgo]);
+
+  return <canvas ref={ref} />;
+}
+
+// ── Chart: Request Rate (Line) ────────────────────────────────────────────────
+function RequestRateChart({ rate }) {
+  const ref = useRef(null);
+  const chartRef = useRef(null);
+  const rateHistory = useRef([]);
+
+  useEffect(() => {
+    const ctx = ref.current.getContext('2d');
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: Array.from({ length: 30 }, (_, i) => `-${30-i}s`),
+        datasets: [{
+          label: 'Requests/sec',
+          data: new Array(30).fill(0),
+          borderColor: '#00E5A0',
+          backgroundColor: 'rgba(0,229,160,0.08)',
+          borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        animation: { duration: 200 },
+        scales: {
+          y: { min: 0, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => `${v}/s` } },
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+    return () => chartRef.current?.destroy();
+  }, []);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    rateHistory.current = [...rateHistory.current.slice(-29), rate];
+    const data = chartRef.current.data.datasets[0].data;
+    data.shift(); data.push(rate);
+    chartRef.current.update('none');
+  }, [rate]);
+
+  return <canvas ref={ref} />;
+}
+
+// ── Comparison Table ──────────────────────────────────────────────────────────
+function ComparisonTable({ stats, perAlgo }) {
+  const rows = [
+    { label: 'Total Requests', rr: stats.roundRobinCount, lc: stats.leastConnCount, ai: stats.aiCount },
+    { label: 'Avg Response Time',
+      rr: perAlgo['round-robin'] ? `${perAlgo['round-robin']}ms` : '—',
+      lc: perAlgo['least-connections'] ? `${perAlgo['least-connections']}ms` : '—',
+      ai: perAlgo['ai'] ? `${perAlgo['ai']}ms` : '—',
+    },
+    { label: 'Success Rate', rr: '100%', lc: '100%', ai: '100%' },
+  ];
+
+  const th = { padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', background: 'rgba(139,92,246,0.1)', color: '#8B5CF6', borderBottom: '1px solid rgba(255,255,255,0.07)' };
+  const td = { padding: '0.75rem 1rem', fontSize: '0.82rem', color: 'var(--text-dim)', borderBottom: '1px solid rgba(255,255,255,0.04)', fontFamily: 'var(--mono)' };
+
+  return (
+    <Card style={{ marginTop: '1.25rem', overflowX: 'auto' }}>
+      <SectionLabel>Algorithm Performance Comparison</SectionLabel>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={th}>Metric</th>
+            <th style={{ ...th, color: '#8B5CF6' }}>↺ Round Robin</th>
+            <th style={{ ...th, color: '#FFB300' }}>⇌ Least Connections</th>
+            <th style={{ ...th, color: '#00D4FF' }}>◈ AI-Powered</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.label} style={{ transition: 'background 0.2s' }}>
+              <td style={{ ...td, color: 'var(--text-dim)', fontFamily: 'var(--sans)', fontWeight: 500 }}>{r.label}</td>
+              <td style={{ ...td, color: '#8B5CF6' }}>{r.rr}</td>
+              <td style={{ ...td, color: '#FFB300' }}>{r.lc}</td>
+              <td style={{ ...td, color: '#00D4FF' }}>{r.ai}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+function App() {
+  const [clock, setClock] = useState('--:--:--');
+  const [stats, setStats] = useState({ roundRobinCount: 0, leastConnCount: 0, aiCount: 0, avgResponseTime: 0 });
+  const [perAlgo, setPerAlgo] = useState({ 'round-robin': 0, 'least-connections': 0, 'ai': 0 });
+  const [requestRate, setRequestRate] = useState(0);
+  const [loadHistory, setLoadHistory] = useState([]);
+  const prevTotal = useRef(0);
+  const tickCount = useRef(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setClock(new Date().toLocaleTimeString('en', { hour12: false })), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const socket = io();
+    socket.on('metrics', (data) => {
+      if (data.stats) {
+        setStats(data.stats);
+        if (data.stats.perAlgoAvgResponse) setPerAlgo(data.stats.perAlgoAvgResponse);
+        // Compute request rate from total requests delta
+        const total = data.stats.totalRequests || 0;
+        const delta = total - prevTotal.current;
+        prevTotal.current = total;
+        setRequestRate(Math.round(delta / 3));
+      }
+      if (data.servers) {
+        setLoadHistory(prev => [...prev.slice(-50), {
+          serverLoads: data.servers.map(s => s.load),
+          time: Date.now(),
+        }]);
+      }
+    });
+    fetch('/metrics').then(r => r.json()).then(data => {
+      if (data.stats) { setStats(data.stats); if (data.stats.perAlgoAvgResponse) setPerAlgo(data.stats.perAlgoAvgResponse); }
+    });
+    return () => socket.disconnect();
+  }, []);
+
+  const counts = { rr: stats.roundRobinCount, lc: stats.leastConnCount, ai: stats.aiCount };
+
+  const pageHeadStyle = {
+    padding: '1.5rem 2rem 0', display: 'flex', alignItems: 'baseline', gap: '0.75rem',
+  };
+
+  return (
+    <div>
+      <Navbar clock={clock} />
+
+      <div style={pageHeadStyle}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text)' }}>Performance Analytics</h1>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Real-time algorithm comparison & server trends</span>
+      </div>
+
+      <div style={{ maxWidth: 1440, margin: '1.5rem auto', padding: '0 2rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: '1.25rem', marginBottom: '1.25rem' }}>
+
+          <Card>
+            <SectionLabel>Algorithm Distribution</SectionLabel>
+            <AlgorithmChart counts={counts} />
+          </Card>
+
+          <Card>
+            <SectionLabel>Server Load Trends (%)</SectionLabel>
+            <LoadTrendChart history={loadHistory} />
+          </Card>
+
+          <Card>
+            <SectionLabel>Response Time by Algorithm (ms)</SectionLabel>
+            <ResponseTimeChart perAlgo={perAlgo} />
+          </Card>
+
+          <Card>
+            <SectionLabel>Real-time Request Rate (req/s)</SectionLabel>
+            <RequestRateChart rate={requestRate} />
+          </Card>
+        </div>
+
+        <ComparisonTable stats={stats} perAlgo={perAlgo} />
+      </div>
+
+      <footer style={{ textAlign: 'center', padding: '1.5rem 2rem', borderTop: '1px solid var(--border)', fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--mono)' }}>
+        CS3009 Software Engineering &nbsp;·&nbsp;
+        <span style={{ color: 'var(--cyan)' }}>S.M. Rayyan (23K-0624)</span> &nbsp;·&nbsp;
+        <span style={{ color: 'var(--purple)' }}>Ali Haider (23K-0848)</span> &nbsp;·&nbsp;
+        <span style={{ color: 'var(--green)' }}>Muhammad Zohib (23K-0602)</span>
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
 </body>
 </html>
